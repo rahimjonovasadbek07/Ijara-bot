@@ -16,7 +16,8 @@
 ╚══════════════════════════════════════════════════════╝
 """
 
-import os, re, sqlite3, logging
+import os, re, sqlite3, logging, threading
+from http.server import HTTPServer, BaseHTTPRequestHandler
 from datetime import date, datetime, timedelta
 from telegram import (
     Update, InlineKeyboardButton, InlineKeyboardMarkup,
@@ -42,7 +43,7 @@ CLICK_NUMBER   = os.getenv("CLICK_NUMBER", "9860350145446075")
 CHANNEL_ID     = os.getenv("CHANNEL_ID", "")
 
 PREMIUM_PRICE  = 20_000
-FREE_ELONLAR   = 1
+FREE_ELONLAR   = 3
 REFERRAL_BONUS = 5   # 5 do'st = 1 oy premium
 
 # Conversation states
@@ -1567,8 +1568,22 @@ async def broadcast_cmd(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
 # ╔══════════════════════════════════════╗
 # ║              MAIN                    ║
 # ╚══════════════════════════════════════╝
+class HealthHandler(BaseHTTPRequestHandler):
+    def do_GET(self):
+        self.send_response(200)
+        self.end_headers()
+        self.wfile.write(b"OK")
+    def log_message(self, *args): pass
+
+def run_health_server():
+    port = int(os.getenv("PORT", 8080))
+    server = HTTPServer(("0.0.0.0", port), HealthHandler)
+    server.serve_forever()
+
 def main():
     init_db()
+    threading.Thread(target=run_health_server, daemon=True).start()
+    log.info("🏠 UZB Ijara Boti ishga tushdi!")
     app = Application.builder().token(TELEGRAM_TOKEN).build()
 
     # E'lon qo'shish conversation
